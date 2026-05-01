@@ -93,9 +93,21 @@ def build_report(project_root: Path, baseline: str | None, run_all_output: str) 
     return "\n".join(lines)
 
 
+def zip_code_dir(code_dir: Path, output_zip: Path) -> None:
+    with ZipFile(output_zip, "w", compression=ZIP_DEFLATED) as zf:
+        for file_path in code_dir.rglob("*"):
+            if "__pycache__" in file_path.parts:
+                continue
+            if file_path.suffix in {".pyc", ".pyo", ".pyd"}:
+                continue
+            if file_path.is_file():
+                zf.write(file_path, file_path.relative_to(code_dir.parent))
+
+
 def main() -> int:
     args = parse_args()
     project_root = Path(args.project_root).resolve()
+    code_dir = project_root / "code"
     output_csv = project_root / "support_tickets" / "output.csv"
     log_file = Path.home() / "hackerrank_orchestrate" / "log.txt"
     bundle_path = project_root / args.bundle_name
@@ -120,13 +132,19 @@ def main() -> int:
         staging = Path(tmp) / "submission_bundle"
         staging.mkdir(parents=True, exist_ok=True)
 
-        (staging / "support_tickets").mkdir(parents=True, exist_ok=True)
-        shutil.copy2(output_csv, staging / "support_tickets" / "output.csv")
+        # 1. Code zip (required by hackathon)
+        zip_code_dir(code_dir, staging / "code.zip")
 
-        (staging / "logs").mkdir(parents=True, exist_ok=True)
+        # 2. Predictions CSV (required by hackathon)
+        shutil.copy2(output_csv, staging / "output.csv")
+
+        # 3. Chat transcript (required by hackathon)
         if log_file.exists():
-            shutil.copy2(log_file, staging / "logs" / "log.txt")
+            shutil.copy2(log_file, staging / "log.txt")
+        else:
+            print("Warning: log.txt not found at the expected path.")
 
+        # Additional artifacts for context
         run_all_path = staging / "run_all_output.txt"
         run_all_path.write_text(run_all_output.strip() or "run_all step was skipped.", encoding="utf-8")
 
@@ -135,12 +153,19 @@ def main() -> int:
 
         if bundle_path.exists():
             bundle_path.unlink()
+        
+        # Create a single zip containing the 3 required files + report
         with ZipFile(bundle_path, "w", compression=ZIP_DEFLATED) as zf:
             for file_path in staging.rglob("*"):
                 if file_path.is_file():
                     zf.write(file_path, file_path.relative_to(staging))
 
-    print(f"Created submission bundle: {bundle_path}")
+    print(f"\nSuccessfully created submission bundle: {bundle_path}")
+    print("This ZIP contains the 3 files you need to upload separately:")
+    print("  1. code.zip")
+    print("  2. output.csv")
+    print("  3. log.txt")
+    
     if args.open:
         open_bundle_location(bundle_path)
     return 0

@@ -6,14 +6,30 @@ SupportNet-X is an intelligent multi-domain support triage assistant that proces
 
 - Modular pipeline: `ingestion -> escalation -> classifier -> retriever -> responder`.
 - Hybrid retrieval with semantic search (`FAISS`) + lexical retrieval (`BM25`) merged by Reciprocal Rank Fusion.
-- Company-aware retrieval bias using the `company` column.
+- **Smarter Domain Inference**: Automatically infers company context (HackerRank, Claude, Visa) from ticket text if the `company` field is missing.
+- **Enhanced Classification**: Robust request type detection and expanded product areas (including Account Access and Permissions) aligned with hackathon requirements.
+- **Risk-Aware Escalation**: Confidence-based and sensitive-keyword escalation logic to handle PII, fraud, and out-of-scope queries safely.
+- Hybrid retrieval with company-aware bias.
 - Query rewriting pass for noisy ticket text.
-- Optional LLM query rewriting with deterministic fallback.
-- Confidence-based escalation from retrieval similarity.
 - Pydantic output validation + retry loop for LLM responses.
 - Per-response source citations (doc + chunk id).
 - Post-generation grounding validator to prevent unsupported claims.
 - Async ticket processing and Rich CLI summary.
+
+... (rest of setup/run sections) ...
+
+## Submission
+
+To prepare your files for the HackerRank platform, run:
+
+```bash
+python scripts/make_submission_bundle.py
+```
+
+This will create a `supportnetx_submission.zip` containing the exact 3 files you need to upload separately:
+1. `code.zip`: Your source code (excluding data and artifacts).
+2. `output.csv`: Your agent's predictions.
+3. `log.txt`: The full chat transcript/log.
 
 ## Project Structure
 

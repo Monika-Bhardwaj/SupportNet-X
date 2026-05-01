@@ -32,6 +32,18 @@ class Retriever:
 
     def retrieve(self, ticket: Ticket) -> RetrievalResult:
         query = self.rewriter.rewrite(ticket)
+        
+        # Infer company from text if missing or None
+        inferred_company = ticket.company
+        if not inferred_company or inferred_company.lower() == "none":
+            text_for_inference = (ticket.subject + " " + ticket.issue).lower()
+            if "visa" in text_for_inference:
+                inferred_company = "Visa"
+            elif "hacker" in text_for_inference:
+                inferred_company = "HackerRank"
+            elif "anthropic" in text_for_inference or "claude" in text_for_inference:
+                inferred_company = "Claude"
+
         query_emb = self.index.model.encode([query], normalize_embeddings=True, convert_to_numpy=True).astype("float32")
         sem_scores, sem_indices = self.index.faiss_index.search(query_emb, min(len(self.index.chunks), max(self.top_k * 5, 10)))
         sem_scores = sem_scores[0].tolist()
@@ -44,7 +56,7 @@ class Retriever:
         bm25_rank = {idx: rank for rank, idx in enumerate(ranked_bm25_idx, start=1)}
         all_candidates = set(sem_rank) | set(bm25_rank)
 
-        company_bias = _normalize_company(ticket.company)
+        company_bias = _normalize_company(inferred_company)
 
         fused: list[tuple[int, float]] = []
         for idx in all_candidates:
