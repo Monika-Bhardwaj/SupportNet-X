@@ -29,10 +29,12 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _validate_input_columns(frame: pd.DataFrame) -> None:
-    missing = [col for col in REQUIRED_COLUMNS if col not in frame.columns]
+def _validate_input_columns(frame: pd.DataFrame) -> dict[str, str]:
+    columns_map = {col.lower(): col for col in frame.columns}
+    missing = [col for col in REQUIRED_COLUMNS if col not in columns_map]
     if missing:
-        raise ValueError(f"Input CSV missing required columns: {missing}")
+        raise ValueError(f"Input CSV missing required columns (case-insensitive): {missing}")
+    return {col: columns_map[col] for col in REQUIRED_COLUMNS}
 
 
 async def _process_all_tickets(pipeline: Pipeline, tickets: list[Ticket], concurrency: int):
@@ -46,6 +48,11 @@ async def _process_all_tickets(pipeline: Pipeline, tickets: list[Ticket], concur
 
 
 def _render_summary(console: Console, frame: pd.DataFrame, tickets_df: pd.DataFrame, metas: list[ProcessMeta]) -> None:
+    # Ensure tickets_df has lowercase company for grouping
+    tickets_copy = tickets_df.copy()
+    company_col = next((c for c in tickets_df.columns if c.lower() == "company"), "company")
+    tickets_copy["company"] = tickets_copy[company_col].fillna("None")
+    
     total = len(frame)
     escalated = int((frame["status"] == "escalated").sum())
     replied = total - escalated
@@ -67,8 +74,8 @@ def _render_summary(console: Console, frame: pd.DataFrame, tickets_df: pd.DataFr
     company_table.add_column("Company", style="magenta")
     company_table.add_column("Replied", style="green")
     company_table.add_column("Escalated", style="yellow")
-    combined = tickets_df[["company"]].copy()
-    combined["status"] = frame["status"]
+    
+    combined = pd.DataFrame({"company": tickets_copy["company"], "status": frame["status"]})
     grouped = combined.groupby(["company", "status"]).size().unstack(fill_value=0)
     for company, row in grouped.iterrows():
         company_table.add_row(
@@ -126,8 +133,16 @@ async def async_main() -> None:
         raise FileNotFoundError(f"Ticket CSV not found: {config.tickets_csv}")
 
     frame = pd.read_csv(config.tickets_csv)
-    _validate_input_columns(frame)
-    tickets = [Ticket(**row) for row in frame[REQUIRED_COLUMNS].to_dict(orient="records")]
+    col_map = _validate_input_columns(frame)
+    
+    # Map input columns to lowercase Ticket fields
+    tickets = []
+    for _, row in frame.iterrows():
+        tickets.append(Ticket(
+            issue=str(row[col_map["issue"]]),
+            subject=str(row[col_map["subject"]]),
+            company=str(row[col_map["company"]])
+        ))
     processed = await _process_all_tickets(pipeline, tickets, config.max_concurrency)
     outputs = [item[0] for item in processed]
     metas = [item[1] for item in processed]

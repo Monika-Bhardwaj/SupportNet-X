@@ -83,8 +83,9 @@ Citations:
 {citations}
 
 Return strict JSON with keys:
-- response: user-facing support response grounded only in excerpts. Add inline source tags like [chunk_id].
-- justification: concise reason referencing the most relevant chunk ids.
+- response: user-facing support response grounded ONLY in the excerpts provided above. 
+  CRITICAL: You MUST include inline source tags like [chunk_id] for every claim you make. If you mention information from chunk 'claude_123', append [claude_123] to that sentence.
+- justification: concise reason referencing the specific chunk ids used.
 """
         raw = self._call_llm(prompt.strip())
         for _ in range(2):

@@ -50,7 +50,7 @@ def load_config(project_root: Path) -> Config:
         cache_dir=cache_dir,
         embedding_model=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
         top_k=int(os.getenv("TOP_K", "3")),
-        min_confidence=float(os.getenv("MIN_CONFIDENCE", "0.35")),
+        min_confidence=float(os.getenv("MIN_CONFIDENCE", "0.25")),
         rrf_k=int(os.getenv("RRF_K", "60")),
         max_concurrency=int(os.getenv("MAX_CONCURRENCY", "8")),
         seed=int(os.getenv("SUPPORTNETX_SEED", "42")),
