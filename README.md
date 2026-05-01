@@ -71,6 +71,18 @@ Compare against a baseline run:
 python scripts/demo_report.py --current support_tickets/output.csv --baseline support_tickets/output_baseline.csv
 ```
 
+Run everything in one command (triage + evaluation + demo report):
+
+```bash
+python scripts/run_all.py
+```
+
+Use a baseline in the one-command flow:
+
+```bash
+python scripts/run_all.py --baseline support_tickets/output_baseline.csv
+```
+
 ## Determinism and Reproducibility
 
 - Seed is configurable via `SUPPORTNETX_SEED` (default `42`).
