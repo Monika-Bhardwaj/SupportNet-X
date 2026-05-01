@@ -83,6 +83,18 @@ Use a baseline in the one-command flow:
 python scripts/run_all.py --baseline support_tickets/output_baseline.csv
 ```
 
+Create a final submission zip with output, logs, and report:
+
+```bash
+python scripts/make_submission_bundle.py
+```
+
+Create bundle with baseline comparison:
+
+```bash
+python scripts/make_submission_bundle.py --baseline support_tickets/output_baseline.csv
+```
+
 ## Determinism and Reproducibility
 
 - Seed is configurable via `SUPPORTNETX_SEED` (default `42`).
