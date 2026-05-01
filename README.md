@@ -1,0 +1,58 @@
+# SupportNet-X
+
+SupportNet-X is an intelligent multi-domain support triage assistant that processes ticket CSV files and produces safe, grounded responses with escalation when needed.
+
+## Features
+
+- Modular pipeline: `ingestion -> escalation -> classifier -> retriever -> responder`.
+- Hybrid retrieval with semantic search (`FAISS`) + lexical retrieval (`BM25`) merged by Reciprocal Rank Fusion.
+- Company-aware retrieval bias using the `company` column.
+- Query rewriting pass for noisy ticket text.
+- Confidence-based escalation from retrieval similarity.
+- Pydantic output validation + retry loop for LLM responses.
+- Per-response source citations (doc + chunk id).
+- Async ticket processing and Rich CLI summary.
+
+## Project Structure
+
+- `code/main.py`: thin CLI entrypoint.
+- `code/supportnetx/config.py`: runtime config and environment settings.
+- `code/supportnetx/models.py`: ticket/result/chunk schemas.
+- `code/supportnetx/logging_utils.py`: AGENTS-style prompt/response log writer.
+- `code/supportnetx/ingestion.py`: data loading, chunking, embedding, index/cache.
+- `code/supportnetx/classifier.py`: request type/product area classification.
+- `code/supportnetx/escalation.py`: risk/PII and confidence escalation logic.
+- `code/supportnetx/retriever.py`: hybrid retrieval with company routing.
+- `code/supportnetx/responder.py`: grounded answer + justification generation.
+- `code/supportnetx/pipeline.py`: orchestration for a single ticket.
+
+## Setup
+
+1. Create environment and install dependencies:
+   - `python -m venv .venv`
+   - Windows: `.venv\\Scripts\\activate`
+   - `pip install -r requirements.txt`
+2. Add API keys in `.env` (optional but recommended):
+   - `OPENAI_API_KEY=...`
+   - `ANTHROPIC_API_KEY=...`
+3. Place corpora under `data/` and input tickets under `support_tickets/support_tickets.csv`.
+
+## Run
+
+From `code/`:
+
+```bash
+python main.py
+```
+
+Generates `support_tickets/output.csv` with exact columns:
+
+`status, product_area, response, justification, request_type`
+
+## Determinism and Reproducibility
+
+- Seed is configurable via `SUPPORTNETX_SEED` (default `42`).
+- Cached embeddings/index metadata are stored under `data/index_cache/`.
+- All prompt/response events are appended to:
+  - `%USERPROFILE%\\hackerrank_orchestrate\\log.txt` on Windows
+  - `$HOME/hackerrank_orchestrate/log.txt` on macOS/Linux

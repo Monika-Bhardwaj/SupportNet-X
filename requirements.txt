@@ -1,0 +1,10 @@
+pandas
+pydantic
+python-dotenv
+numpy
+sentence-transformers
+faiss-cpu
+rank-bm25
+openai
+anthropic
+rich
