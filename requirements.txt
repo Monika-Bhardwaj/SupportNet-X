@@ -8,3 +8,4 @@ rank-bm25==0.2.2
 openai==1.78.1
 anthropic==0.52.2
 rich==14.0.0
+requests
