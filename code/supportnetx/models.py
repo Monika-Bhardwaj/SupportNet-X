@@ -37,6 +37,7 @@ class ClassificationResult(BaseModel):
 class RiskResult(BaseModel):
     escalated: bool
     reason: str
+    category: str = "none"
 
 
 class ResponsePayload(BaseModel):
@@ -49,4 +50,18 @@ class TicketOutput(BaseModel):
     product_area: str
     response: str
     justification: str
+    request_type: RequestType
+
+
+class RetrievalResult(BaseModel):
+    rewritten_query: str
+    chunks: list[RetrievedChunk]
+    avg_confidence: float
+
+
+class ProcessMeta(BaseModel):
+    company: str
+    status: TicketStatus
+    confidence: float
+    risk_category: str = "none"
     request_type: RequestType

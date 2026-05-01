@@ -25,6 +25,9 @@ class Config:
     seed: int
     llm_provider: str
     llm_model: str
+    query_rewrite_model: str
+    enable_query_rewrite: bool
+    strict_company_routing: bool
     log_file: Path
 
 
@@ -53,6 +56,9 @@ def load_config(project_root: Path) -> Config:
         seed=int(os.getenv("SUPPORTNETX_SEED", "42")),
         llm_provider=os.getenv("LLM_PROVIDER", "openai"),
         llm_model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
+        query_rewrite_model=os.getenv("QUERY_REWRITE_MODEL", "gpt-4o-mini"),
+        enable_query_rewrite=os.getenv("ENABLE_QUERY_REWRITE", "true").lower() == "true",
+        strict_company_routing=os.getenv("STRICT_COMPANY_ROUTING", "false").lower() == "true",
         log_file=log_file,
     )
 

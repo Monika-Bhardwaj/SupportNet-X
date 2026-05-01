@@ -38,30 +38,39 @@ class EscalationLogic:
                 return RiskResult(
                     escalated=True,
                     reason=f"Escalated: sensitive topic detected ({keyword}).",
+                    category="security_risk" if keyword in {"hacked", "unauthorized", "security breach", "exploit", "bypass"} else "financial_risk",
                 )
         if CARD_RE.search(text):
             return RiskResult(
                 escalated=True,
                 reason="Escalated: possible payment card number detected (PCI-sensitive).",
+                category="pii_detected",
             )
         if EMAIL_RE.search(text) and "password" in lowered:
             return RiskResult(
                 escalated=True,
                 reason="Escalated: credentials/PII-like content detected.",
+                category="pii_detected",
             )
-        return RiskResult(escalated=False, reason="No direct risk keyword or PII pattern detected.")
+        return RiskResult(escalated=False, reason="No direct risk keyword or PII pattern detected.", category="none")
 
     def evaluate_retrieval_confidence(self, similarities: Iterable[float]) -> RiskResult:
         values = list(similarities)
         if not values:
-            return RiskResult(escalated=True, reason="Escalated: no relevant support documents retrieved.")
+            return RiskResult(
+                escalated=True,
+                reason="Escalated: no relevant support documents retrieved.",
+                category="out_of_scope",
+            )
         avg_score = sum(values) / len(values)
         if avg_score < self.min_confidence:
             return RiskResult(
                 escalated=True,
                 reason=f"Escalated: low retrieval confidence (avg={avg_score:.3f} < {self.min_confidence:.3f}).",
+                category="low_confidence",
             )
         return RiskResult(
             escalated=False,
             reason=f"Retrieval confidence acceptable (avg={avg_score:.3f}).",
+            category="none",
         )

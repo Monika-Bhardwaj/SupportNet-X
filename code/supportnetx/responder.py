@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 
 from anthropic import Anthropic
@@ -101,3 +102,20 @@ Return strict JSON with keys:
             response="We need to escalate this request to a human agent due to formatting uncertainty.",
             justification="Fallback after JSON validation retry failure.",
         )
+
+    @staticmethod
+    def validate_grounding(payload: ResponsePayload, chunks: list[RetrievedChunk]) -> tuple[bool, str]:
+        if not chunks:
+            return False, "No retrieved support context was available."
+        chunk_ids = {chunk.chunk_id for chunk in chunks}
+        cited = set(re.findall(r"\[([^\]]+)\]", payload.response))
+        valid_cited = cited.intersection(chunk_ids)
+        if not valid_cited:
+            return False, "Response missing valid chunk citations."
+
+        reference_text = " ".join(chunk.text.lower() for chunk in chunks)
+        response_words = {w for w in re.findall(r"[a-zA-Z]{5,}", payload.response.lower())}
+        overlap = sum(1 for word in response_words if word in reference_text)
+        if response_words and (overlap / max(len(response_words), 1)) < 0.2:
+            return False, "Low lexical grounding overlap with retrieved support excerpts."
+        return True, "Grounding validation passed."

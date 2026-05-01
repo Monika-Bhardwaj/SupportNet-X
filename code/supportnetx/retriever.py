@@ -1,12 +1,11 @@
 from __future__ import annotations
-
-import re
 from dataclasses import dataclass
 
 from rank_bm25 import BM25Okapi
 
 from .ingestion import CorpusIndex
-from .models import RetrievedChunk, Ticket
+from .models import RetrievalResult, RetrievedChunk, Ticket
+from .query_rewriter import QueryRewriter
 
 
 def _normalize_company(value: str) -> str:
@@ -20,24 +19,19 @@ def _normalize_company(value: str) -> str:
     return "general"
 
 
-def _simple_query_rewrite(text: str) -> str:
-    cleaned = text.lower()
-    cleaned = cleaned.replace("acnt", "account").replace("pwd", "password").replace("txn", "transaction")
-    cleaned = re.sub(r"\s+", " ", cleaned).strip()
-    return cleaned
-
-
 @dataclass
 class Retriever:
     index: CorpusIndex
     top_k: int
     rrf_k: int
+    rewriter: QueryRewriter
+    strict_company_routing: bool = False
 
     def __post_init__(self) -> None:
         self.bm25 = BM25Okapi(self.index.bm25_corpus_tokens)
 
-    def retrieve(self, ticket: Ticket) -> list[RetrievedChunk]:
-        query = _simple_query_rewrite(ticket.text())
+    def retrieve(self, ticket: Ticket) -> RetrievalResult:
+        query = self.rewriter.rewrite(ticket)
         query_emb = self.index.model.encode([query], normalize_embeddings=True, convert_to_numpy=True).astype("float32")
         sem_scores, sem_indices = self.index.faiss_index.search(query_emb, min(len(self.index.chunks), max(self.top_k * 5, 10)))
         sem_scores = sem_scores[0].tolist()
@@ -61,6 +55,8 @@ class Retriever:
                 score += 1.0 / (self.rrf_k + bm25_rank[idx])
 
             chunk_company = self.index.chunks[idx].company.lower()
+            if self.strict_company_routing and company_bias != "general" and company_bias not in chunk_company:
+                continue
             if company_bias != "general" and company_bias in chunk_company:
                 score *= 1.25
             elif company_bias != "general":
@@ -78,7 +74,8 @@ class Retriever:
             chunk.fused_rank = rank
             results.append(chunk)
 
-        return results
+        confidence = self.confidence(results)
+        return RetrievalResult(rewritten_query=query, chunks=results, avg_confidence=confidence)
 
     @staticmethod
     def confidence(chunks: list[RetrievedChunk]) -> float:

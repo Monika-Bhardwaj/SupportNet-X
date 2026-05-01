@@ -13,8 +13,9 @@ from supportnetx.config import load_config, seed_everything
 from supportnetx.escalation import EscalationLogic
 from supportnetx.ingestion import build_or_load_index
 from supportnetx.logging_utils import PromptLogger
-from supportnetx.models import Ticket
+from supportnetx.models import ProcessMeta, Ticket
 from supportnetx.pipeline import Pipeline
+from supportnetx.query_rewriter import QueryRewriter
 from supportnetx.responder import Responder
 from supportnetx.retriever import Retriever
 
@@ -44,10 +45,12 @@ async def _process_all_tickets(pipeline: Pipeline, tickets: list[Ticket], concur
     return await asyncio.gather(*[_worker(t) for t in tickets])
 
 
-def _render_summary(console: Console, frame: pd.DataFrame, tickets_df: pd.DataFrame) -> None:
+def _render_summary(console: Console, frame: pd.DataFrame, tickets_df: pd.DataFrame, metas: list[ProcessMeta]) -> None:
     total = len(frame)
     escalated = int((frame["status"] == "escalated").sum())
     replied = total - escalated
+    avg_conf = (sum(meta.confidence for meta in metas) / max(len(metas), 1)) if metas else 0.0
+    low_conf = sum(1 for meta in metas if meta.confidence < 0.35)
 
     table = Table(title="SupportNet-X Run Summary")
     table.add_column("Metric", style="cyan")
@@ -56,6 +59,8 @@ def _render_summary(console: Console, frame: pd.DataFrame, tickets_df: pd.DataFr
     table.add_row("Replied", str(replied))
     table.add_row("Escalated", str(escalated))
     table.add_row("Escalation rate", f"{(escalated / max(total, 1)) * 100:.1f}%")
+    table.add_row("Average confidence", f"{avg_conf:.3f}")
+    table.add_row("Low-confidence tickets (<0.35)", str(low_conf))
     console.print(table)
 
     company_table = Table(title="Per-company status breakdown")
@@ -73,6 +78,16 @@ def _render_summary(console: Console, frame: pd.DataFrame, tickets_df: pd.DataFr
         )
     console.print(company_table)
 
+    risk_table = Table(title="Escalation categories")
+    risk_table.add_column("Risk category", style="red")
+    risk_table.add_column("Count", style="yellow")
+    risk_counts: dict[str, int] = {}
+    for meta in metas:
+        risk_counts[meta.risk_category] = risk_counts.get(meta.risk_category, 0) + 1
+    for category, count in sorted(risk_counts.items(), key=lambda item: item[1], reverse=True):
+        risk_table.add_row(category, str(count))
+    console.print(risk_table)
+
 
 async def async_main() -> None:
     args = _parse_args()
@@ -86,7 +101,19 @@ async def async_main() -> None:
 
     classifier = Classifier()
     escalation = EscalationLogic(min_confidence=config.min_confidence)
-    retriever = Retriever(index=index, top_k=config.top_k, rrf_k=config.rrf_k)
+    rewriter = QueryRewriter(
+        provider=config.llm_provider,
+        model=config.query_rewrite_model,
+        logger=logger,
+        enabled=config.enable_query_rewrite,
+    )
+    retriever = Retriever(
+        index=index,
+        top_k=config.top_k,
+        rrf_k=config.rrf_k,
+        rewriter=rewriter,
+        strict_company_routing=config.strict_company_routing,
+    )
     responder = Responder(provider=config.llm_provider, model=config.llm_model, logger=logger)
     pipeline = Pipeline(
         escalation=escalation,
@@ -101,14 +128,16 @@ async def async_main() -> None:
     frame = pd.read_csv(config.tickets_csv)
     _validate_input_columns(frame)
     tickets = [Ticket(**row) for row in frame[REQUIRED_COLUMNS].to_dict(orient="records")]
-    outputs = await _process_all_tickets(pipeline, tickets, config.max_concurrency)
+    processed = await _process_all_tickets(pipeline, tickets, config.max_concurrency)
+    outputs = [item[0] for item in processed]
+    metas = [item[1] for item in processed]
 
     out_df = pd.DataFrame([output.model_dump() for output in outputs])
     out_df = out_df[OUTPUT_COLUMNS]
     config.output_csv.parent.mkdir(parents=True, exist_ok=True)
     out_df.to_csv(config.output_csv, index=False)
 
-    _render_summary(console, out_df, frame)
+    _render_summary(console, out_df, frame, metas)
     console.print(f"\nOutput written to: [bold]{config.output_csv}[/bold]")
 
 
