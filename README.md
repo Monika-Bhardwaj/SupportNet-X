@@ -95,6 +95,12 @@ Create bundle with baseline comparison:
 python scripts/make_submission_bundle.py --baseline support_tickets/output_baseline.csv
 ```
 
+Create bundle and open the output location automatically:
+
+```bash
+python scripts/make_submission_bundle.py --open
+```
+
 ## Determinism and Reproducibility
 
 - Seed is configurable via `SUPPORTNETX_SEED` (default `42`).

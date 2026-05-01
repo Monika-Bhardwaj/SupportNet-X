@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -33,12 +34,31 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip executing scripts/run_all.py before bundling.",
     )
+    parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Open generated bundle location after creation.",
+    )
     return parser.parse_args()
 
 
 def run_command(command: list[str], cwd: Path) -> tuple[int, str, str]:
     proc = subprocess.run(command, cwd=str(cwd), capture_output=True, text=True)
     return proc.returncode, proc.stdout, proc.stderr
+
+
+def open_bundle_location(bundle_path: Path) -> None:
+    try:
+        if sys.platform.startswith("win"):
+            os.startfile(str(bundle_path.parent))  # type: ignore[attr-defined]
+            return
+        if sys.platform == "darwin":
+            subprocess.run(["open", str(bundle_path.parent)], check=False)
+            return
+        subprocess.run(["xdg-open", str(bundle_path.parent)], check=False)
+    except Exception:
+        # Non-fatal convenience step.
+        pass
 
 
 def build_report(project_root: Path, baseline: str | None, run_all_output: str) -> str:
@@ -121,6 +141,8 @@ def main() -> int:
                     zf.write(file_path, file_path.relative_to(staging))
 
     print(f"Created submission bundle: {bundle_path}")
+    if args.open:
+        open_bundle_location(bundle_path)
     return 0
 
 
