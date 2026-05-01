@@ -10,3 +10,4 @@ dist/
 *.egg-info/
 support_tickets/output.csv
 data/index_cache/
+supportnetx_submission.zip
