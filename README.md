@@ -51,12 +51,33 @@ Generates `support_tickets/output.csv` with exact columns:
 
 `status, product_area, response, justification, request_type`
 
+## Evaluation Harness
+
+Run rubric-aligned checks after generating `output.csv`:
+
+```bash
+python scripts/evaluate.py --input-csv support_tickets/support_tickets.csv --output-csv support_tickets/output.csv
+```
+
+Generate a judge-friendly quality report:
+
+```bash
+python scripts/demo_report.py --current support_tickets/output.csv
+```
+
+Compare against a baseline run:
+
+```bash
+python scripts/demo_report.py --current support_tickets/output.csv --baseline support_tickets/output_baseline.csv
+```
+
 ## Determinism and Reproducibility
 
 - Seed is configurable via `SUPPORTNETX_SEED` (default `42`).
 - Cached embeddings/index metadata are stored under `data/index_cache/`.
 - `STRICT_COMPANY_ROUTING=true` enforces hard corpus isolation by company.
 - `ENABLE_QUERY_REWRITE=true` controls the rewrite pre-pass.
+- Dependency versions are pinned in `requirements.txt` for reproducible installs.
 - All prompt/response events are appended to:
   - `%USERPROFILE%\\hackerrank_orchestrate\\log.txt` on Windows
   - `$HOME/hackerrank_orchestrate/log.txt` on macOS/Linux
