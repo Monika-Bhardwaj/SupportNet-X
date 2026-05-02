@@ -15,6 +15,8 @@ Customer support queues are frequently bottlenecked by high volumes of repetitiv
 
 ## 🛠️ Approach & Detailed Solution
 
+![SupportNet Architecture](assets/architecture.png)
+
 SupportNet-X is built on a **modular RAG (Retrieval-Augmented Generation)** architecture designed specifically for safety and domain-specific accuracy. Rather than relying on a single LLM call to solve everything, the system uses a multi-layered pipeline:
 
 1. **Risk Triage (Circuit Breaker):** Immediately scans raw tickets for sensitive topics (fraud, PII) using regex and keyword heuristics. High-risk tickets are escalated instantly.
@@ -112,3 +114,8 @@ python scripts/run_all.py
 - **Embeddings**: Sentence-Transformers
 - **LLM**: Hugging Face Inference API / Anthropic / OpenAI
 - **Reporting**: Rich (Console UI)
+
+
+## 📸 Screenshots
+
+![SupportNet Terminal Output](assets/terminal_ui.png)
